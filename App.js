@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, View, Text, TextInput, TouchableOpacity, 
-  SafeAreaView, FlatList, ActivityIndicator 
+  SafeAreaView, FlatList, ActivityIndicator, Alert 
 } from 'react-native';
 
-// --- 1. นำเข้า Firebase ---
+// --- 1. นำเข้า Firebase และฟังก์ชันที่จำเป็น ---
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "firebase/firestore";
+import { 
+  getFirestore, collection, addDoc, onSnapshot, 
+  query, orderBy, deleteDoc, doc 
+} from "firebase/firestore";
 
 // --- 2. ตั้งค่า Firebase Config ---
 const firebaseConfig = {
@@ -19,6 +22,7 @@ const firebaseConfig = {
   measurementId: "G-TM1H9XF2ND"
 };
 
+// เริ่มต้น Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
@@ -30,7 +34,7 @@ export default function App() {
   const [posts, setPosts] = useState([]); 
   const [loading, setLoading] = useState(false);
 
-  // --- 3. ดึงข้อมูลแบบ Real-time ---
+  // --- 3. ดึงข้อมูลแบบ Real-time จาก Cloud ---
   useEffect(() => {
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -65,14 +69,41 @@ export default function App() {
     }
   };
 
-  // --- 4. ฟังก์ชันแสดงแต่ละโพสต์ (Render Item) ---
+  // --- 4. ฟังก์ชันลบโพสต์ (ลบใน Firebase) ---
+  const deletePost = async (id) => {
+    Alert.alert("ยืนยันการลบ", "คุณต้องการลบโพสต์นี้ใช่หรือไม่?", [
+      { text: "ยกเลิก", style: "cancel" },
+      { 
+        text: "ลบ", 
+        style: "destructive", 
+        onPress: async () => {
+          try {
+            await deleteDoc(doc(db, "posts", id));
+          } catch (e) {
+            alert("ลบไม่สำเร็จ: " + e.message);
+          }
+        } 
+      }
+    ]);
+  };
+
+  // --- 5. ส่วนแสดงแต่ละโพสต์ (Render Item) ---
   const renderPost = ({ item }) => (
     <View style={styles.postCard}>
-      <Text style={styles.postTitle}>{item.title}</Text>
-      <View style={{flexDirection: 'row', justifyContent: 'space-between', marginTop: 8}}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Text style={styles.postTitle}>{item.title}</Text>
+        
+        {/* แสดงปุ่มลบ เฉพาะคนที่เป็นคนโพสต์เท่านั้น */}
+        {item.author === email && (
+          <TouchableOpacity onPress={() => deletePost(item.id)}>
+            <Text style={{ color: 'red', fontSize: 12, fontWeight: 'bold' }}>ลบ</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+      
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
         <Text style={styles.postAuthor}>โดย: {item.author}</Text>
-        {/* แสดงเวลาที่ดึงมาจาก Firebase */}
-        <Text style={{fontSize: 10, color: '#bbb'}}>
+        <Text style={{ fontSize: 10, color: '#bbb' }}>
           {item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('th-TH') : 'กำลังโหลด...'}
         </Text>
       </View>
@@ -83,7 +114,8 @@ export default function App() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.content}>
-          <Text style={styles.title}>Web Board Login</Text>
+          <Text style={styles.title}>Bismarck Board Login</Text>
+          <Text style={[styles.title, { fontSize: 50, marginTop: -20 }]}>BBL</Text>
           <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
           <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
           <TouchableOpacity style={styles.button} onPress={handleLogin}>
@@ -97,15 +129,15 @@ export default function App() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>กระทู้ล่าสุด (Cloud)</Text>
+        <Text style={styles.headerTitle}>BBL กระทู้ล่าสุด</Text>
         <TouchableOpacity onPress={() => setIsLoggedIn(false)}>
-          <Text style={{color: 'red', fontWeight: 'bold'}}>Logout</Text>
+          <Text style={{ color: 'red', fontWeight: 'bold' }}>Logout</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.inputSection}>
         <TextInput 
-          style={[styles.input, {marginBottom: 0, flex: 1}]} 
+          style={[styles.input, { marginBottom: 0, flex: 1 }]} 
           placeholder="เขียนอะไรบางอย่างลง Cloud..." 
           value={newPost}
           onChangeText={setNewPost}
@@ -119,7 +151,7 @@ export default function App() {
         data={posts}
         keyExtractor={item => item.id}
         renderItem={renderPost}
-        ListEmptyComponent={<Text style={{textAlign: 'center', marginTop: 20, color: '#999'}}>ยังไม่มีโพสต์ในขณะนี้</Text>}
+        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>ยังไม่มีโพสต์ในขณะนี้</Text>}
       />
     </SafeAreaView>
   );
@@ -137,6 +169,6 @@ const styles = StyleSheet.create({
   inputSection: { flexDirection: 'row', padding: 15, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
   postButton: { backgroundColor: '#007AFF', padding: 10, borderRadius: 10, marginLeft: 10, justifyContent: 'center', minWidth: 60, alignItems: 'center' },
   postCard: { backgroundColor: '#fff', padding: 15, marginHorizontal: 15, marginTop: 15, borderRadius: 12, borderLeftWidth: 5, borderLeftColor: '#007AFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3 },
-  postTitle: { fontSize: 16, fontWeight: '600', color: '#1a1a1a' },
+  postTitle: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', flex: 1 },
   postAuthor: { fontSize: 12, color: '#666' }
 });
