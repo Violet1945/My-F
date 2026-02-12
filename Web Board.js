@@ -50,10 +50,10 @@ export default function WebBoard() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f0f2f5' },
   header: { padding: 20, backgroundColor: '#fff', borderBottomWidth: 1, borderColor: '#ddd' },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#007AFF' },
+  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#ff3300' },
   inputContainer: { flexDirection: 'row', padding: 15, backgroundColor: '#fff' },
   input: { flex: 1, borderWidth: 1, borderColor: '#ddd', borderRadius: 20, paddingHorizontal: 15, marginRight: 10 },
-  postButton: { backgroundColor: '#007AFF', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 20, justifyContent: 'center' },
+  postButton: { backgroundColor: '#ff5e00', borderRadius: 20, paddingVertical: 10, paddingHorizontal: 20, justifyContent: 'center' },
   postButtonText: { color: '#fff', fontWeight: 'bold' },
   postCard: { backgroundColor: '#fff', padding: 15, marginHorizontal: 15, marginTop: 10, borderRadius: 10, elevation: 2 },
   postTitle: { fontSize: 18, fontWeight: '600' },

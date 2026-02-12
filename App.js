@@ -1,174 +1,153 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  StyleSheet, View, Text, TextInput, TouchableOpacity, 
-  SafeAreaView, FlatList, ActivityIndicator, Alert 
+  StyleSheet, View, Text, Image, FlatList, 
+  SafeAreaView, ActivityIndicator, StatusBar 
 } from 'react-native';
 
-// --- 1. นำเข้า Firebase และฟังก์ชันที่จำเป็น ---
+// --- 1. นำเข้า Firebase ---
 import { initializeApp } from "firebase/app";
-import { 
-  getFirestore, collection, addDoc, onSnapshot, 
-  query, orderBy, deleteDoc, doc 
-} from "firebase/firestore";
+import { getFirestore, collection, onSnapshot } from "firebase/firestore";
 
-// --- 2. ตั้งค่า Firebase Config ---
+// --- 2. Firebase Config (อัปเดตตามรูปโปรเจกต์ของนายแล้ว) ---
 const firebaseConfig = {
-  apiKey: "AIzaSyDrJHAZF2Nucn3i3DNgQjq6acgkYCFOwn4",
-  authDomain: "test01-4bae4.firebaseapp.com",
-  projectId: "test01-4bae4",
-  storageBucket: "test01-4bae4.firebasestorage.app",
-  messagingSenderId: "964388017629",
-  appId: "1:964388017629:web:e593e8b4d6bfe9f8369234",
-  measurementId: "G-TM1H9XF2ND"
+  // ⚠️ นายต้องเอา API Key จริงจากหน้า Project Settings มาใส่ตรงนี้แทน "AIza..." นะครับ
+  apiKey: "AIzaSyDrJHAZF2Nucn3i3DNgQjq6acgkYCFOwn4", 
+  authDomain: "travelplaces-79e29.firebaseapp.com",
+  projectId: "travelplaces-79e29",
+  storageBucket: "travelplaces-79e29.firebasestorage.app",
+  messagingSenderId: "964388017629", 
+  appId: "1:964388017629:web:e593e8b4d6bfe9f8369234" 
 };
 
-// เริ่มต้น Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [newPost, setNewPost] = useState('');
-  const [posts, setPosts] = useState([]); 
-  const [loading, setLoading] = useState(false);
+  const [places, setPlaces] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // --- 3. ดึงข้อมูลแบบ Real-time จาก Cloud ---
   useEffect(() => {
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const firebaseData = snapshot.docs.map(doc => ({
+    const colRef = collection(db, "travel_places");
+    const unsubscribe = onSnapshot(colRef, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      setPosts(firebaseData);
+      setPlaces(data);
+      setLoading(false);
+    }, (error) => {
+      console.error("Firebase Error: ", error.message);
+      setLoading(false);
     });
     return () => unsubscribe();
   }, []);
 
-  const handleLogin = () => {
-    if (email && password) setIsLoggedIn(true);
-    else alert('กรุณากรอกอีเมลและรหัสผ่าน');
-  };
-
-  const addPost = async () => {
-    if (newPost.trim()) {
-      setLoading(true);
-      try {
-        await addDoc(collection(db, "posts"), {
-          title: newPost,
-          author: email,
-          createdAt: new Date() 
-        });
-        setNewPost('');
-      } catch (e) {
-        alert("โพสต์ไม่สำเร็จ: " + e.message);
-      }
-      setLoading(false);
-    }
-  };
-
-  // --- 4. ฟังก์ชันลบโพสต์ (ลบใน Firebase) ---
-  const deletePost = async (id) => {
-    Alert.alert("ยืนยันการลบ", "คุณต้องการลบโพสต์นี้ใช่หรือไม่?", [
-      { text: "ยกเลิก", style: "cancel" },
-      { 
-        text: "ลบ", 
-        style: "destructive", 
-        onPress: async () => {
-          try {
-            await deleteDoc(doc(db, "posts", id));
-          } catch (e) {
-            alert("ลบไม่สำเร็จ: " + e.message);
-          }
-        } 
-      }
-    ]);
-  };
-
-  // --- 5. ส่วนแสดงแต่ละโพสต์ (Render Item) ---
-  const renderPost = ({ item }) => (
-    <View style={styles.postCard}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Text style={styles.postTitle}>{item.title}</Text>
-        
-        {/* แสดงปุ่มลบ เฉพาะคนที่เป็นคนโพสต์เท่านั้น */}
-        {item.author === email && (
-          <TouchableOpacity onPress={() => deletePost(item.id)}>
-            <Text style={{ color: 'red', fontSize: 12, fontWeight: 'bold' }}>ลบ</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+  const renderPlace = ({ item }) => (
+    <View style={styles.card}>
+      {/* 🖼️ ปรับรูปให้สูงขึ้นเป็น 300 */}
+      <Image 
+        source={{ uri: item.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image' }} 
+        style={styles.cardImage} 
+      />
       
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 }}>
-        <Text style={styles.postAuthor}>โดย: {item.author}</Text>
-        <Text style={{ fontSize: 10, color: '#bbb' }}>
-          {item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('th-TH') : 'กำลังโหลด...'}
+      {/* 📝 เพิ่ม Padding ให้ช่องเนื้อหาสูงและโปร่งขึ้น */}
+      <View style={styles.cardContent}>
+        <View style={styles.headerRow}>
+          <Text style={styles.placeName}>{item.name}</Text>
+          <View style={styles.ratingBox}>
+            <Text style={styles.ratingText}>⭐ {item.rating}</Text>
+          </View>
+        </View>
+
+        <Text style={styles.locationText}>📍 {item.location}</Text>
+        
+        {/* 📖 ปรับระยะบรรทัด (lineHeight) ให้ช่องคำบรรยายดูสูงและอ่านง่าย */}
+        <Text style={styles.description}>
+          {item.description}
         </Text>
+        
+        <View style={styles.footer}>
+          <Text style={styles.moreInfo}>ดูข้อมูลเพิ่มเติม...</Text>
+        </View>
       </View>
     </View>
   );
 
-  if (!isLoggedIn) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.content}>
-          <Text style={styles.title}>Bismarck Board Login</Text>
-          <Text style={[styles.title, { fontSize: 50, marginTop: -20 }]}>BBL</Text>
-          <TextInput style={styles.input} placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
-          <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
-          <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>เข้าสู่ระบบ</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>BBL กระทู้ล่าสุด</Text>
-        <TouchableOpacity onPress={() => setIsLoggedIn(false)}>
-          <Text style={{ color: 'red', fontWeight: 'bold' }}>Logout</Text>
-        </TouchableOpacity>
+      <StatusBar barStyle="dark-content" />
+      <View style={styles.topHeader}>
+        <Text style={styles.brandText}>ลำพูน Travel Guide ⛩️</Text>
       </View>
 
-      <View style={styles.inputSection}>
-        <TextInput 
-          style={[styles.input, { marginBottom: 0, flex: 1 }]} 
-          placeholder="เขียนอะไรบางอย่างลง Cloud..." 
-          value={newPost}
-          onChangeText={setNewPost}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      ) : (
+        <FlatList
+          data={places}
+          keyExtractor={item => item.id}
+          renderItem={renderPlace}
+          contentContainerStyle={styles.listPadding}
         />
-        <TouchableOpacity style={styles.postButton} onPress={addPost} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>ส่ง</Text>}
-        </TouchableOpacity>
-      </View>
-
-      <FlatList
-        data={posts}
-        keyExtractor={item => item.id}
-        renderItem={renderPost}
-        ListEmptyComponent={<Text style={{ textAlign: 'center', marginTop: 20, color: '#999' }}>ยังไม่มีโพสต์ในขณะนี้</Text>}
-      />
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  content: { flex: 1, justifyContent: 'center', padding: 20 },
-  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 30, textAlign: 'center', color: '#333' },
-  input: { backgroundColor: '#fff', padding: 15, borderRadius: 10, borderWidth: 1, borderColor: '#ddd', marginBottom: 15 },
-  button: { backgroundColor: '#007AFF', padding: 15, borderRadius: 10, alignItems: 'center' },
-  buttonText: { color: '#fff', fontWeight: 'bold' },
-  header: { padding: 20, backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold' },
-  inputSection: { flexDirection: 'row', padding: 15, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  postButton: { backgroundColor: '#007AFF', padding: 10, borderRadius: 10, marginLeft: 10, justifyContent: 'center', minWidth: 60, alignItems: 'center' },
-  postCard: { backgroundColor: '#fff', padding: 15, marginHorizontal: 15, marginTop: 15, borderRadius: 12, borderLeftWidth: 5, borderLeftColor: '#007AFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 3 },
-  postTitle: { fontSize: 16, fontWeight: '600', color: '#1a1a1a', flex: 1 },
-  postAuthor: { fontSize: 12, color: '#666' }
+  container: { flex: 1, backgroundColor: '#f0f2f5' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  topHeader: {
+    paddingVertical: 40, // เพิ่มความสูง Header
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderColor: '#eee',
+    elevation: 2,
+  },
+  brandText: { fontSize: 28, fontWeight: 'bold', color: '#1a1a1a' },
+  listPadding: { padding: 20 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    marginBottom: 30, // เพิ่มระยะห่างระหว่างช่อง
+    overflow: 'hidden',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+  },
+  cardImage: { 
+    width: '100%', 
+    height: 500, // 🔥 ปรับความสูงรูปภาพให้สูงสะใจ
+    backgroundColor: '#ddd' 
+  },
+  cardContent: { 
+    padding: 25, // 🔥 เพิ่มพื้นที่ว่างข้างในให้ดูสูงขึ้น
+  },
+  headerRow: { 
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center',
+    marginBottom: 10
+  },
+  placeName: { fontSize: 22, fontWeight: 'bold', color: '#333' },
+  ratingBox: { backgroundColor: '#fff9e5', padding: 8, borderRadius: 10 },
+  ratingText: { color: '#ffa000', fontWeight: 'bold', fontSize: 16 },
+  locationText: { color: '#007aff', marginBottom: 15, fontSize: 16, fontWeight: '600' },
+  description: { 
+    color: '#555', 
+    fontSize: 15, 
+    lineHeight: 50, // 🔥 เพิ่มระยะห่างระหว่างบรรทัด
+    marginBottom: 20 
+  },
+  footer: {
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+    paddingTop: 15,
+    alignItems: 'flex-end'
+  },
+  moreInfo: { color: '#007aff', fontWeight: 'bold' }
 });
