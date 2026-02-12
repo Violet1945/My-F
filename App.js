@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, View, Text, Image, FlatList, 
-  SafeAreaView, ActivityIndicator, StatusBar 
+  SafeAreaView, ActivityIndicator, StatusBar, 
+  TouchableOpacity, Modal, ScrollView, Dimensions 
 } from 'react-native';
 
 // --- 1. นำเข้า Firebase ---
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection, onSnapshot } from "firebase/firestore";
 
-// --- 2. Firebase Config (อัปเดตตามรูปโปรเจกต์ของนายแล้ว) ---
+// --- 2. Firebase Config (ใช้ค่าจากโปรเจกต์ travelplaces-79e29 ของนาย) ---
 const firebaseConfig = {
-  // ⚠️ นายต้องเอา API Key จริงจากหน้า Project Settings มาใส่ตรงนี้แทน "AIza..." นะครับ
   apiKey: "AIzaSyDrJHAZF2Nucn3i3DNgQjq6acgkYCFOwn4", 
   authDomain: "travelplaces-79e29.firebaseapp.com",
   projectId: "travelplaces-79e29",
@@ -22,9 +22,12 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+const { width } = Dimensions.get('window');
+
 export default function App() {
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedPlace, setSelectedPlace] = useState(null);
 
   useEffect(() => {
     const colRef = collection(db, "travel_places");
@@ -43,14 +46,15 @@ export default function App() {
   }, []);
 
   const renderPlace = ({ item }) => (
-    <View style={styles.card}>
-      {/* 🖼️ ปรับรูปให้สูงขึ้นเป็น 300 */}
+    <TouchableOpacity 
+      style={styles.card} 
+      activeOpacity={0.95}
+      onPress={() => setSelectedPlace(item)} 
+    >
       <Image 
         source={{ uri: item.imageUrl || 'https://via.placeholder.com/400x300?text=No+Image' }} 
         style={styles.cardImage} 
       />
-      
-      {/* 📝 เพิ่ม Padding ให้ช่องเนื้อหาสูงและโปร่งขึ้น */}
       <View style={styles.cardContent}>
         <View style={styles.headerRow}>
           <Text style={styles.placeName}>{item.name}</Text>
@@ -58,96 +62,148 @@ export default function App() {
             <Text style={styles.ratingText}>⭐ {item.rating}</Text>
           </View>
         </View>
-
         <Text style={styles.locationText}>📍 {item.location}</Text>
         
-        {/* 📖 ปรับระยะบรรทัด (lineHeight) ให้ช่องคำบรรยายดูสูงและอ่านง่าย */}
-        <Text style={styles.description}>
+        {/* หน้าแรกโชว์สั้นๆ */}
+        <Text style={styles.description} numberOfLines={2}>
           {item.description}
         </Text>
         
-        <View style={styles.footer}>
-          <Text style={styles.moreInfo}>ดูข้อมูลเพิ่มเติม...</Text>
+        <View style={styles.footerLine}>
+          <Text style={styles.moreInfoBtn}>อ่านข้อมูลเชิงลึกเพิ่มเติม →</Text>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
+      
+      {/* ส่วนหัวแอป */}
       <View style={styles.topHeader}>
-        <Text style={styles.brandText}>ลำพูน Travel Guide ⛩️</Text>
+        <Text style={styles.headerSubtitle}>เที่ยวลำพูนง่ายๆ กับ</Text>
+        <Text style={styles.headerTitle}>LAMPHUN GUIDE 🏯</Text>
       </View>
 
       {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={{marginTop: 10, color: '#999'}}>กำลังโหลดที่เที่ยวสวยๆ...</Text>
         </View>
       ) : (
-        <FlatList
-          data={places}
-          keyExtractor={item => item.id}
-          renderItem={renderPlace}
+        <FlatList 
+          data={places} 
+          keyExtractor={item => item.id} 
+          renderItem={renderPlace} 
           contentContainerStyle={styles.listPadding}
+          showsVerticalScrollIndicator={false}
         />
       )}
+
+      {/* --- 🖼️ Modal: หน้าแสดงข้อมูลที่ไม่ได้โชว์ในช่องหลัก --- */}
+      <Modal visible={!!selectedPlace} animationType="slide" presentationStyle="fullScreen">
+        {selectedPlace && (
+          <View style={styles.modalView}>
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Image source={{ uri: selectedPlace.imageUrl }} style={styles.modalImage} />
+              
+              <TouchableOpacity 
+                style={styles.backFab} 
+                onPress={() => setSelectedPlace(null)}
+              >
+                <Text style={{fontSize: 20}}>✕</Text>
+              </TouchableOpacity>
+
+              <View style={styles.modalBody}>
+                <Text style={styles.modalTitle}>{selectedPlace.name}</Text>
+                <Text style={styles.modalLocation}>📍 {selectedPlace.location}</Text>
+                
+                <View style={styles.modalStats}>
+                    <View style={styles.statItem}>
+                        <Text style={styles.statLabel}>คะแนนความนิยม</Text>
+                        <Text style={styles.statValue}>⭐ {selectedPlace.rating} / 5</Text>
+                    </View>
+                </View>
+
+                <View style={styles.infoSection}>
+                    <Text style={styles.sectionTitle}>📖 รายละเอียดและประวัติที่น่าสนใจ</Text>
+                    {/* ตรงนี้จะโชว์ข้อความยาวๆ ทั้งหมดที่นายกรอกใน Firebase */}
+                    <Text style={styles.fullDescription}>{selectedPlace.description}</Text>
+                </View>
+
+                <TouchableOpacity 
+                  style={styles.closeBtn} 
+                  onPress={() => setSelectedPlace(null)}
+                >
+                  <Text style={styles.closeBtnText}>กลับไปหน้าหลัก</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        )}
+      </Modal>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
+  container: { flex: 1, backgroundColor: '#F8F9FD' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   topHeader: {
-    paddingVertical: 40, // เพิ่มความสูง Header
+    paddingTop: 20,
+    paddingBottom: 25,
     backgroundColor: '#fff',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderColor: '#eee',
-    elevation: 2,
-  },
-  brandText: { fontSize: 28, fontWeight: 'bold', color: '#1a1a1a' },
-  listPadding: { padding: 20 },
-  card: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
-    marginBottom: 30, // เพิ่มระยะห่างระหว่างช่อง
-    overflow: 'hidden',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
     elevation: 5,
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 10,
   },
-  cardImage: { 
-    width: '100%', 
-    height: 500, // 🔥 ปรับความสูงรูปภาพให้สูงสะใจ
-    backgroundColor: '#ddd' 
+  headerSubtitle: { fontSize: 14, color: '#007AFF', fontWeight: '600', letterSpacing: 1 },
+  headerTitle: { fontSize: 26, fontWeight: 'bold', color: '#1A1A1A', marginTop: 5 },
+  listPadding: { padding: 20 },
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: 25,
+    marginBottom: 25,
+    overflow: 'hidden',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 15,
   },
-  cardContent: { 
-    padding: 25, // 🔥 เพิ่มพื้นที่ว่างข้างในให้ดูสูงขึ้น
+  cardImage: { width: '100%', height: 280 },
+  cardContent: { padding: 20 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  placeName: { fontSize: 22, fontWeight: 'bold', color: '#333', flex: 1 },
+  ratingBox: { backgroundColor: '#FFF9E5', padding: 8, borderRadius: 12 },
+  ratingText: { color: '#FFA000', fontWeight: 'bold' },
+  locationText: { color: '#007AFF', marginVertical: 8, fontWeight: '600' },
+  description: { color: '#777', fontSize: 15, lineHeight: 22 },
+  footerLine: { marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
+  moreInfoBtn: { color: '#007AFF', fontWeight: 'bold', textAlign: 'right' },
+
+  // Modal Styles
+  modalView: { flex: 1, backgroundColor: '#fff' },
+  modalImage: { width: width, height: 450 },
+  backFab: {
+    position: 'absolute', top: 50, left: 20,
+    backgroundColor: '#fff', width: 45, height: 45,
+    borderRadius: 25, justifyContent: 'center', alignItems: 'center',
+    elevation: 5
   },
-  headerRow: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between', 
-    alignItems: 'center',
-    marginBottom: 10
-  },
-  placeName: { fontSize: 22, fontWeight: 'bold', color: '#333' },
-  ratingBox: { backgroundColor: '#fff9e5', padding: 8, borderRadius: 10 },
-  ratingText: { color: '#ffa000', fontWeight: 'bold', fontSize: 16 },
-  locationText: { color: '#007aff', marginBottom: 15, fontSize: 16, fontWeight: '600' },
-  description: { 
-    color: '#555', 
-    fontSize: 15, 
-    lineHeight: 50, // 🔥 เพิ่มระยะห่างระหว่างบรรทัด
-    marginBottom: 20 
-  },
-  footer: {
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    paddingTop: 15,
-    alignItems: 'flex-end'
-  },
-  moreInfo: { color: '#007aff', fontWeight: 'bold' }
+  modalBody: { padding: 30, marginTop: -30, backgroundColor: '#fff', borderTopLeftRadius: 35, borderTopRightRadius: 35 },
+  modalTitle: { fontSize: 30, fontWeight: 'bold', color: '#1A1A1A' },
+  modalLocation: { fontSize: 18, color: '#007AFF', marginTop: 10 },
+  modalStats: { marginVertical: 25, padding: 20, backgroundColor: '#F8F9FD', borderRadius: 20 },
+  statLabel: { color: '#999', fontSize: 14 },
+  statValue: { fontSize: 18, fontWeight: 'bold', color: '#333', marginTop: 5 },
+  infoSection: { marginBottom: 30 },
+  sectionTitle: { fontSize: 18, fontWeight: 'bold', color: '#333', marginBottom: 15 },
+  fullDescription: { fontSize: 16, color: '#555', lineHeight: 28 },
+  closeBtn: { backgroundColor: '#007AFF', padding: 20, borderRadius: 20, alignItems: 'center', marginBottom: 50 },
+  closeBtnText: { color: '#fff', fontSize: 18, fontWeight: 'bold' }
 });
