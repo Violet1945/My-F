@@ -2,8 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, View, Text, Image, FlatList, 
   SafeAreaView, ActivityIndicator, StatusBar, 
-  TouchableOpacity, Modal, ScrollView, Dimensions 
+  TouchableOpacity, Modal, ScrollView, Dimensions,
+  TextInput
 } from 'react-native';
+// นำเข้าไอคอนจาก Expo
+import { Ionicons } from '@expo/vector-icons';
+// นำเข้า LinearGradient สำหรับหัวแอป
+import { LinearGradient } from 'expo-linear-gradient';
 
 // --- 1. นำเข้า Firebase ---
 import { initializeApp } from "firebase/app";
@@ -28,6 +33,12 @@ export default function App() {
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedPlace, setSelectedPlace] = useState(null);
+  const [search, setSearch] = useState('');
+
+  // กรองข้อมูลตามคำค้นหา
+  const filteredPlaces = places.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   useEffect(() => {
     const colRef = collection(db, "travel_places");
@@ -81,10 +92,13 @@ export default function App() {
       <StatusBar barStyle="dark-content" />
       
       {/* ส่วนหัวแอป */}
-      <View style={styles.topHeader}>
+      <LinearGradient
+        colors={['#00A8E8', '#0A3D62']}
+        style={styles.topHeader}
+      >
         <Text style={styles.headerSubtitle}>เที่ยวลำพูนง่ายๆ กับ</Text>
         <Text style={styles.headerTitle}>LAMPHUN GUIDE 🏯</Text>
-      </View>
+      </LinearGradient>
 
       {loading ? (
         <View style={styles.center}>
@@ -92,13 +106,31 @@ export default function App() {
           <Text style={{marginTop: 10, color: '#999'}}>กำลังโหลดที่เที่ยวสวยๆ...</Text>
         </View>
       ) : (
-        <FlatList 
-          data={places} 
-          keyExtractor={item => item.id} 
-          renderItem={renderPlace} 
-          contentContainerStyle={styles.listPadding}
-          showsVerticalScrollIndicator={false}
-        />
+        <>
+          {/* search bar */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#777" style={{marginRight:10}} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="ค้นหาสถานที่..."
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+
+          <FlatList 
+            data={filteredPlaces} 
+            keyExtractor={item => item.id} 
+            renderItem={renderPlace} 
+            contentContainerStyle={styles.listPadding}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={() => (
+              <View style={styles.center}>
+                <Text style={{color: '#999'}}>ไม่พบผลลัพธ์</Text>
+              </View>
+            )}
+          />
+        </>
       )}
 
       {/* --- 🖼️ Modal: หน้าแสดงข้อมูลที่ไม่ได้โชว์ในช่องหลัก --- */}
@@ -151,9 +183,9 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F8F9FD' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   topHeader: {
-    paddingTop: 20,
-    paddingBottom: 25,
-    backgroundColor: '#fff',
+    paddingTop: 40,
+    paddingBottom: 30,
+    backgroundColor: '#00A8E8', // สีสำรองถ้า gradient ไม่ทำงาน
     alignItems: 'center',
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
@@ -162,8 +194,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 10,
   },
-  headerSubtitle: { fontSize: 14, color: '#007AFF', fontWeight: '600', letterSpacing: 1 },
-  headerTitle: { fontSize: 26, fontWeight: 'bold', color: '#1A1A1A', marginTop: 5 },
+  headerSubtitle: { fontSize: 14, color: '#fff', fontWeight: '600', letterSpacing: 1 },
+  headerTitle: { fontSize: 28, fontWeight: 'bold', color: '#fff', marginTop: 5 },
   listPadding: { padding: 20 },
   card: {
     backgroundColor: '#fff',
@@ -174,6 +206,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000',
     shadowOpacity: 0.1,
     shadowRadius: 15,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
   },
   cardImage: { width: '100%', height: 280 },
   cardContent: { padding: 20 },
@@ -184,7 +218,27 @@ const styles = StyleSheet.create({
   locationText: { color: '#007AFF', marginVertical: 8, fontWeight: '600' },
   description: { color: '#777', fontSize: 15, lineHeight: 22 },
   footerLine: { marginTop: 15, paddingTop: 15, borderTopWidth: 1, borderTopColor: '#F0F0F0' },
-  moreInfoBtn: { color: '#007AFF', fontWeight: 'bold', textAlign: 'right' },
+  moreInfoBtn: { color: '#00A8E8', fontWeight: 'bold', textAlign: 'right' },
+
+  // search bar styles
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 20,
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    margin: 20,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#333',
+  },
 
   // Modal Styles
   modalView: { flex: 1, backgroundColor: '#fff' },
